@@ -5,6 +5,7 @@ const $=id=>document.getElementById(id);
 let playerName='', current=null, placedCount=0, totalParts=0;
 let challengeMode=false, littleMode=false, buildStart=0, timerInt=null, justUnlockedMsg='';
 let currentCat='truck', majors=null, minorQueue=[], finishingTouches=false;
+let snapFactor=1, memoryT=null;
 
 function builtMap(){ const p=activeProfile(); return p?p.built:{}; }
 function starMap(){ const p=activeProfile(); return p?p.stars:{}; }
@@ -42,7 +43,7 @@ function openProfilePicker(){
     card.className='profileCard';
     card.innerHTML=`<svg viewBox="40 50 740 450">${renderVehicleSVG(t,p.paint[t.id],(p.decals||{})[t.id])}</svg>
       <div class="pname">${p.name}</div>
-      <div class="psub">${built?built+' build'+(built>1?'s':''):'New builder'} · ${p.mode==='little'?'🧸 Little':'🔧 Pro'}</div>`;
+      <div class="psub">${built?built+' build'+(built>1?'s':''):'New builder'} · LV ${levelInfo(p.xp).n} · ${p.mode==='little'?'🧸':'🔧'}</div>`;
     card.onclick=()=>{
       setActiveProfile(id); audio(); sndYay();
       onProfileReady();
@@ -61,7 +62,7 @@ function openProfilePicker(){
 }
 function openNameScreen(){
   $('nameInput').value='';
-  pendingMode='little';
+  pendingMode='pro';
   syncModeCards();
   show('nameScreen');
 }
@@ -99,6 +100,11 @@ $('trophyBtn').onclick=()=>{sndPop();openTrophyGarage()};
 function renderGarage(){
   $('tabTruck').classList.toggle('on',currentCat==='truck');
   $('tabDino').classList.toggle('on',currentCat==='dino');
+  const lv=levelInfo(activeProfile().xp);
+  const badge=$('levelBadge');
+  badge.querySelector('.lvName').textContent=`LV ${lv.n} · ${lv.name}`;
+  badge.querySelector('.lvBar').style.width=lv.pct+'%';
+  badge.querySelector('.lvNext').textContent=lv.toNext?`${lv.toNext} XP to next`:'MAX!';
   $('masterBadge').classList.toggle('on',allDone());
   if(allDone()) $('masterBadge').textContent=`🏆 MASTER BUILDER ${playerName} — ALL ${TRUCKS.length} BUILDS! 🏆`;
   const p=activeProfile();
@@ -158,6 +164,27 @@ function startBuild(truck){
   littleMode=p.mode==='little';
   challengeMode=!littleMode&&!!builtMap()[truck.id];
   buildStart=Date.now();
+  /* level-driven challenge (Pro only): fainter ghosts, tighter snaps,
+     and Memory Builds from level 5 — a 6s peek, then build from memory */
+  const lvl=levelInfo(p.xp).n;
+  let ghostO=.9, memory=false;
+  snapFactor=1;
+  clearTimeout(memoryT);
+  stage.classList.remove('memory');
+  if(!littleMode){
+    if(lvl>=5){ memory=true; snapFactor=.72; }
+    else if(lvl===4){ ghostO=.32; snapFactor=.8; }
+    else if(lvl===3){ ghostO=.55; snapFactor=.9; }
+  }
+  stage.style.setProperty('--ghostO',ghostO);
+  if(memory){
+    memoryT=setTimeout(()=>{
+      if(current!==truck||!$('buildScreen').classList.contains('on'))return;
+      stage.classList.add('memory');
+      cheerText('MEMORY<br><span class="nm">BUILD!</span>');
+      say('Memory build! Can you remember where everything goes?');
+    },6000);
+  }
   clearInterval(timerInt);
   const tm=$('timer');
   tm.classList.toggle('on',challengeMode);
@@ -225,6 +252,7 @@ function startDrag(e){
   window.addEventListener('pointerup',onDragEnd);
   window.addEventListener('pointercancel',onDragEnd);
   sndPop();
+  sayLabel(part.label);   // early-reader boost: hear the part name you grabbed
 }
 function moveGhost(x,y){ drag.ghost.style.transform=`translate(${x-drag.w/2}px,${y-drag.h-14}px)`; drag.lastX=x; drag.lastY=y; }
 function onDragMove(e){ e.preventDefault(); if(drag) moveGhost(e.clientX,e.clientY); }
@@ -239,13 +267,18 @@ function onDragEnd(e){
   const b=partBBoxes[d.pid];
   const dist=Math.hypot(p.x-b.cx,p.y-b.cy);
   let threshold=Math.max(110, Math.max(b.w,b.h)*0.65);
-  if(littleMode) threshold*=1.6;            // Little Builder: extra-forgiving snap
+  threshold*=littleMode?1.6:snapFactor;     // forgiving for littles, tighter as levels rise
   if(dist<threshold){
     d.ghost.remove(); d.item.remove();
     placePart(d.pid,px,py);
   }else{
     const onStage=document.elementFromPoint(px,d.lastY??e.clientY);
-    if(onStage && $('stageWrap').contains(onStage)) sndNope();
+    if(onStage && $('stageWrap').contains(onStage)){
+      sndNope();
+      // near-miss help: briefly relight this part's ghost (memory builds stay fair)
+      const gh=stage.querySelector(`.ghost[data-part="${d.pid}"]`);
+      if(gh){ gh.classList.add('ghostHint'); setTimeout(()=>gh.classList.remove('ghostHint'),1600); }
+    }
     const r=d.startRect;
     d.ghost.classList.add('flyback');
     d.ghost.style.transform=`translate(${r.left}px,${r.top}px) scale(.4)`;
@@ -295,20 +328,24 @@ function placePart(pid,sx,sy,auto){
 }
 function completeBuild(){
   clearInterval(timerInt);
+  clearTimeout(memoryT);
   const p=activeProfile();
   const trucksWere=builtCount('truck'), dinosWere=builtCount('dino');
+  const wasBuiltBefore=!!p.built[current.id];
   p.built[current.id]=true; p.lastBuilt=current.id;
   justUnlockedMsg='';
   if(!current.lockedIf){
     if(current.cat==='truck'&&trucksWere<5&&builtCount('truck')>=5) justUnlockedMsg='🔓 2 SECRET TRUCKS UNLOCKED IN THE GARAGE!';
     if(current.cat==='dino'&&dinosWere<4&&builtCount('dino')>=4) justUnlockedMsg='🔓 SECRET DINO TRUCK UNLOCKED: REX RIDER!';
   }
+  const firstTime=!wasBuiltBefore;
   if(challengeMode){
     const secs=(Date.now()-buildStart)/1000, n=current.parts.length;
     const stars=secs<n*4.5?3:secs<n*8?2:1;
     p.stars[current.id]=Math.max(p.stars[current.id]||0,stars);
     current._lastStars=stars; current._lastSecs=Math.round(secs);
   } else { current._lastStars=0; }
+  current._xpRes=addXP((firstTime?20:10)+(current._lastStars||0)*5);
   persist();
   say('You built the '+titleCase(current.name)+'! Amazing!');
   setTimeout(()=>runFinale(),1300);
@@ -437,6 +474,15 @@ function megaCelebrate(isDino){
     for(let i=0;i<8;i++){ setTimeout(()=>burst(W*Math.random(), H*(0.5+Math.random()*0.3), true), 3200+i*200); }
     say(justUnlockedMsg.includes('REX')?'You unlocked the secret dino truck!':'You unlocked two secret trucks!');
     justUnlockedMsg='';
+  }
+  if(current._xpRes){
+    const r=current._xpRes;
+    extra+=`<div style="font-family:Nunito;font-weight:900;font-size:clamp(13px,3.6vw,19px);margin-top:8px;color:#9fe8ff;text-shadow:0 2px 0 #000a">+${r.gained} XP · LEVEL ${r.level.n} ${r.level.name}</div>`;
+    if(r.leveledUp){
+      extra+=`<div class="disp" style="font-size:clamp(20px,5.5vw,34px);margin-top:6px;color:#7ee08f;text-shadow:0 3px 0 #000a">⬆ LEVEL UP!</div>`;
+      for(let i=0;i<10;i++){ setTimeout(()=>burst(W*Math.random(), H*(0.15+Math.random()*0.5), true), 1500+i*180); }
+      say('Level up! You are now a '+titleCase(r.level.name)+'!');
+    }
   }
   if(allDone()&&!current._lastStars){
     extra+=`<div style="font-family:Nunito;font-weight:900;font-size:clamp(15px,4.5vw,24px);margin-top:12px;color:#ffd23f;text-shadow:0 2px 0 #000a">🏆 MASTER BUILDER! EVERY BUILD COMPLETE!</div>`;

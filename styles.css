@@ -88,6 +88,15 @@ body{
   position:absolute;top:max(10px,env(safe-area-inset-top));right:12px;font-size:20px;width:44px;height:44px;
   background:#fff;border:3px solid var(--ink);border-radius:14px;cursor:pointer;box-shadow:0 4px 0 #00000018;z-index:6;
 }
+#levelBadge{
+  display:flex;align-items:center;gap:8px;font-weight:900;font-size:12px;color:#2b6cb0;
+  background:#fff;border:3px solid var(--ink);border-radius:14px;padding:5px 12px;margin:2px 0 6px;
+  box-shadow:0 4px 0 #00000015;
+}
+#levelBadge .lvName{font-family:'Luckiest Guy';font-size:14px;color:var(--accent);letter-spacing:.03em}
+.lvBarWrap{width:min(120px,22vw);height:12px;border:2.5px solid var(--ink);border-radius:8px;background:#e6edf7;overflow:hidden}
+.lvBar{height:100%;width:0%;background:linear-gradient(90deg,#4aa3ff,#7ee08f);transition:width .6s}
+#levelBadge .lvNext{opacity:.65;font-size:10.5px}
 #masterBadge{display:none;font-family:'Luckiest Guy';color:#b45309;background:linear-gradient(#ffe9a8,#ffd23f);border:4px solid var(--ink);border-radius:16px;padding:8px 18px;margin-bottom:8px;box-shadow:0 5px 0 #00000022;font-size:clamp(14px,4.2vw,21px)}
 #masterBadge.on{display:block}
 #tabs{display:flex;gap:10px;margin:6px 0 10px;flex-wrap:wrap;justify-content:center}
@@ -158,7 +167,10 @@ body{
   fill:var(--slot)!important;stroke:var(--slotline)!important;stroke-width:4!important;stroke-dasharray:9 7!important;
 }
 .ghost text{display:none}
-.ghost{opacity:.9}
+.ghost{opacity:var(--ghostO,.9);transition:opacity 1.4s}
+/* Memory Build (level 5+): the blueprint fades after a 6-second peek */
+#stage.memory .ghost{opacity:.1}
+.ghost.ghostHint{opacity:.95!important;transition:opacity .25s}
 .placedPart{filter:drop-shadow(0 0 2.5px #ffffff) drop-shadow(0 0 2.5px #ffffff) drop-shadow(0 3px 3px #0003)}
 .popIn{animation:pop .45s cubic-bezier(.34,1.56,.64,1)}
 @keyframes pop{0%{transform:scale(1.45)}100%{transform:scale(1)}}

@@ -62,3 +62,35 @@ function savePhoto(dataUrl){
   while(p.photos.length>MAX_PHOTOS) p.photos.shift();
   persist();
 }
+
+/* ============================================================
+   BUILDER LEVELS — progression that advances a growing kid.
+   XP from every build; levels quietly raise the challenge
+   (fainter ghosts, tighter snaps, memory builds) in Pro mode.
+============================================================ */
+const LEVELS=[
+  {xp:0,  name:'ROOKIE WRENCH'},
+  {xp:40, name:'GEAR GETTER'},
+  {xp:90, name:'TORQUE TIGER'},
+  {xp:160,name:'TURBO CHIEF'},
+  {xp:250,name:'MASTER MECHANIC'},
+  {xp:360,name:'CRUSH COMMANDER'},
+  {xp:500,name:'GARAGE LEGEND'},
+];
+function levelInfo(xp){
+  xp=xp||0;
+  let li=0;
+  for(let i=0;i<LEVELS.length;i++) if(xp>=LEVELS[i].xp) li=i;
+  const cur=LEVELS[li], next=LEVELS[li+1]||null;
+  return {n:li+1,name:cur.name,xp,
+    pct: next?Math.min(100,Math.round((xp-cur.xp)/(next.xp-cur.xp)*100)):100,
+    toNext: next?next.xp-xp:0};
+}
+function addXP(amount){
+  const p=activeProfile(); if(!p)return null;
+  const before=levelInfo(p.xp).n;
+  p.xp=(p.xp||0)+amount;
+  const after=levelInfo(p.xp);
+  persist();
+  return {gained:amount,level:after,leveledUp:after.n>before};
+}

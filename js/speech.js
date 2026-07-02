@@ -50,3 +50,11 @@ function sayPraise(name,slow){
   say(PRAISE_LINES[praiseIdx].replace('{n}',name));
 }
 function titleCase(s){ return s.toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()); }
+/* speak a part's name on pickup — vocabulary/early reading, lightly throttled */
+let lastLabelAt=0;
+function sayLabel(label){
+  const now=Date.now();
+  if(now-lastLabelAt<1200) return;
+  lastLabelAt=now;
+  say(label+'!',{rate:1.05});
+}

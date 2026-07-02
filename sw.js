@@ -3,7 +3,7 @@
    Bump CACHE on every deploy so kids' iPads pick up new content.
    The game has zero network needs after first load.
 ============================================================ */
-const CACHE='bcg-v4.0.0';
+const CACHE='bcg-v4.1.0';
 const SHELL=[
   './',
   'index.html',

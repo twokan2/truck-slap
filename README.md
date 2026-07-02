@@ -54,9 +54,17 @@ globals, by design — zero tooling required.
   Controls: hold right half = go, left half = back up. That's it.
 - **Tap surprises** — wheels spin, horns honk (per-vehicle: siren blip,
   jingle, air horn), exhaust puffs, dino jaws chomp, eyes blink.
-- **Difficulty modes** — Little Builder (7 biggest parts, 1.6× snap radius,
-  big tray tiles, auto "finishing touches", no timer) vs Pro Builder
-  (all parts + challenge stars). Chosen per profile, changeable in settings.
+- **Difficulty modes** — Little Builder (ages 2–4: 7 biggest parts, 1.6× snap
+  radius, big tray tiles, auto "finishing touches", no timer) vs Pro Builder
+  (ages 5+: all parts + challenge stars). Chosen per profile, changeable in
+  settings.
+- **Builder Levels (Pro)** — every build earns XP (+bonus for stars); the
+  garage shows a level badge and progress bar. As levels rise the game
+  quietly advances the child: level 3 fades the ghost outlines and tightens
+  the snap radius, level 4 more so, and level 5+ unlocks **Memory Builds** —
+  a 6-second peek at the blueprint, then it fades and they build from
+  memory (a near-miss drop briefly relights that part's ghost so it stays
+  fair). Part names are also spoken on pickup for early-reader vocabulary.
 - **Spoken encouragement** — Web Speech praise/greetings, separate voice
   toggle, silent during finale/drive, fully optional.
 - **PWA** — installable, fullscreen landscape, works in airplane mode
