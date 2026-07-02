@@ -10,7 +10,46 @@ const DRV={
   wx:0, vx:0, yOff:0, vy:0, air:false, pitch:0, wheels:[], legs:[],
   holdL:false, holdR:false, pointers:{}, props:[], segs:{}, t:0, lastTs:0,
   strideAcc:0, smokeAcc:0, lastSkid:0, shakeT:0, isDino:false, S:0.56, baseY:0,
+  mission:null, missionsDone:0,
 };
+
+/* ---------- missions: optional goals that feed the XP ladder.
+   No fail state, no timer — finish 3 and it's free play. ---------- */
+const MISSIONS=[
+  {type:'car',  goal:3, label:v=>v?'SQUASH 3 CARS!':'CRUSH 3 CARS!'},
+  {type:'jump', goal:2, label:()=>'LAND 2 BIG JUMPS!'},
+  {type:'smash',goal:4, label:()=>'SMASH 4 THINGS!'},
+];
+function newMission(){
+  if(DRV.missionsDone>=3){ DRV.mission=null; missionChip('FREE PLAY! 🎉',true); setTimeout(()=>missionChip(''),2600); return; }
+  const pool=MISSIONS.filter(m=>!DRV.mission||m.type!==DRV.mission.type);
+  const m=pool[Math.floor(Math.random()*pool.length)];
+  DRV.mission={type:m.type,goal:m.goal,count:0,label:m.label(DRV.isDino)};
+  missionChip(`⭐ ${DRV.mission.label} 0/${DRV.mission.goal}`);
+}
+function missionChip(txt,pop){
+  const el=document.getElementById('missionChip');
+  el.textContent=txt;
+  el.classList.toggle('on',!!txt);
+  if(pop){ el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+}
+function missionTick(type){
+  const m=DRV.mission;
+  if(!m||m.type!==type)return;
+  m.count++;
+  if(m.count>=m.goal){
+    DRV.mission=null; DRV.missionsDone++;
+    sndFanfare();
+    const r=addXP(10);
+    missionChip(`MISSION DONE! +10 XP ⬆`,true);
+    burst(innerWidth/2,innerHeight*0.3,true);
+    if(r&&r.leveledUp) setTimeout(()=>missionChip(`⬆ LEVEL ${r.level.n} — ${r.level.name}!`,true),1400);
+    setTimeout(newMission,3200);
+  }else{
+    missionChip(`⭐ ${m.label} ${m.count}/${m.goal}`,true);
+    sndSparkle();
+  }
+}
 const DRV_GROUND=426, DRV_SEG=1500, DRV_VIEW=1000;
 
 const driveEl=document.getElementById('drive');
@@ -112,6 +151,9 @@ function openDrive(truck,from){
   DRV.wx=0; DRV.vx=0; DRV.yOff=0; DRV.vy=0; DRV.air=false; DRV.pitch=0;
   DRV.props=[]; DRV.segs={}; DRV.holdL=DRV.holdR=false; DRV.pointers={};
   DRV.t=0; DRV.lastTs=0; DRV.strideAcc=0;
+  DRV.mission=null; DRV.missionsDone=0;
+  missionChip('');
+  setTimeout(()=>{ if(DRV.on&&!DRV.mission) newMission(); },4000);
   DRV.S=0.56; DRV.baseY=DRV_GROUND-472*DRV.S;
   speechSuppressed=true;
   const isDino=DRV.isDino;
@@ -138,6 +180,7 @@ function openDrive(truck,from){
 }
 function closeDrive(){
   DRV.on=false;
+  missionChip('');
   cancelAnimationFrame(DRV.raf);
   engineStop();
   speechSuppressed=false;
@@ -205,6 +248,7 @@ function driveFrame(ts){
     slopePitch=Math.max(-14,Math.min(10,D.vy*.02));
     if(D.yOff>=0){ // touchdown
       D.air=false; D.yOff=0; D.vy=0; sndThump();
+      missionTick('jump');
       svgPuff(document.getElementById('dvFx'),340+60,DRV_GROUND-4,D.isDino?'#caa97a':'#8a93a3');
       const inner=document.getElementById('dvVehInner');
       inner.style.transformBox='fill-box';
@@ -247,11 +291,13 @@ function driveFrame(ts){
         driveStage.classList.remove('dshake'); void driveStage.getBoundingClientRect(); driveStage.classList.add('dshake');
         setTimeout(()=>driveStage.classList.remove('dshake'),320);
         D.vx*=.86;
+        missionTick('car');
       }
     }else if(p.type==='cone'||p.type==='barrels'||p.type==='bush'){
       const w=p.type==='bush'?100:160;
       if(spd>60&&veh.front>p.x-10&&veh.back<p.x+w+10){
         p.done=true;
+        missionTick('smash');
         const bits=p.el.querySelectorAll('.pc');
         if(p.type==='bush'){
           sndBoing();
